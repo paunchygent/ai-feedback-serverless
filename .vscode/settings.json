@@ -1,0 +1,16 @@
+{
+    "python.defaultInterpreterPath": "${env:VENV_PATH}/bin/python3.12",
+    "python.languageServer": "Pylance",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.extraPaths": [
+        ".",
+        "./src",
+        "${workspaceFolder}/venv/lib/python3.12/site-packages"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportAttributeAccessIssue": "none",
+        "reportOptionalMemberAccess": "none"
+    },
+    "git.user.email": "paunchygent@gmail.com",
+    "git.user.name": "Olof Larsson"
+}

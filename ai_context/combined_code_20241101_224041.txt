@@ -1,0 +1,761 @@
+# Combined Project Files
+# This file contains all relevant source code from the project
+
+
+================================================================================
+# File: __init__.py
+================================================================================
+
+
+
+================================================================================
+# File: constants.py
+================================================================================
+
+# constants.py
+
+import os
+
+# Constants for folder IDs
+INPUT_FOLDER_ID = os.getenv('INPUT_FOLDER_ID', '1m_v4M41nRvskbz2vdQQCY6xDZo9fpfnu')
+OUTPUT_FOLDER_ID = os.getenv('OUTPUT_FOLDER_ID', '1uYZMU_abYzEMiSa4F1MIq-9Xuqqk5OaI')
+
+ESSAY_INSTRUCTION = """Skrivuppgift: Uppsats om ungas läsning
+Uppgiftsbeskrivning: Du har fått i uppgift att skriva ett personligt och reflekterande inlägg för en webbplats som diskuterar samhälls- och skolfrågor. Ditt inlägg ska handla om ungas minskade läsning och läsförmåga. Utgå från dina personliga erfarenheter, men koppla dem också till de bredare perspektiv som presenteras i de angivna källorna.
+Ditt inlägg ska först och främst väcka intresse för frågan om ungas minskande läsning. Det är viktigt att ge läsarna perspektiv på ämnet genom att resonera kring varför läsningen minskar och om detta är något vi bör vara oroade över. Du ska också diskutera möjliga lösningar på problemet och presentera relevant information från de angivna källorna för att stärka dina resonemang och ge läsarna en bredare förståelse.
+De här frågorna måste din text besvara:
+•	Utifrån dina erfarenheter och de källor du läst, vad anser du om ungas läsning idag?
+•	Vilka hot och möjligheter ser du för ungas läsning i framtiden?
+Följande frågor är enbart inspiration till ditt skrivande:
+•	Vad betyder läsning för dig personligen?
+•	Hur har din relation till läsning förändrats över tid?
+•	Vilken roll spelar läsning i ditt liv nu?
+•	Hur tror du att din läsning kommer att utvecklas framöver?
+Inkludera två exempel från de angivna texterna som stöd för dina resonemang. Tänk på: att dina läsare inte har läst texterna.
+Kom ihåg att ditt inlägg ska vara engagerande och relevant för en bred publik som är intresserad av samhälls- och skolfrågor.
+
+Rubrik: Ungas läsning – hot och möjligheter
+Omfång: 400–600 ord
+Tid: ca 120 minuter
+
+Bedömning: Vi kommer att fokusera:
+•	Textens struktur, sammanhang och förmåga att väcka intresse
+•	Din förmåga att reflektera över din egen läsning och koppla den till det större sammanhanget
+•	Hur väl du resonerar kring orsakerna till minskad läsning och potentiella lösningar
+•	Tydligheten i din åsikt om ungas läsning
+•	Användning och källhänvisning av exempel från de angivna källorna
+
+När du källhänvisar till artiklarna nedan ska du göra fullständiga källhänvisningar i brödtext. Lyft gärna in fullständiga datum inom parenteser (år-månad-dag för tidningar och år för tryckta böcker och rapporter). Om du anser att det förenklar din meningsbyggnad kan du även lyfta in var källan är publicerad i parentesen, men det är frivilligt.
+
+PS! Glöm inte bort att använda referatmarkörer!
+
+Namn på tidningar, så som *Dagens Nyheter* kan kursiveras.
+
+Bjärvall, Katarina. 2011-05-31. ”Godis för hjärnan”. Lärarnas Nyheter.
+
+Letmark, Peter. 2017-09-24. ”En läsande hjärna formas i tidig ålder”. Dagens Nyheter.
+
+Lindberg, Gisela. 2017-08-31. ”Unga allt sämre på svåra ord”. Forskning.se
+
+Magnusson, Lisa. 2020-08-27. ”Om skolan inte prioriterar läsning och skrivande kommer inget annat heller att fungera”. Dagens Nyheter.
+
+Nordlund, Anna. Svedjedal, Johan. 2020. Läsandets årsringar. Rapport och reflektion om läsningens aktuella tillstånd i Sverige. Förläggarföreningen."""
+
+================================================================================
+# File: docx_utils.py
+================================================================================
+
+# docx_utils.py
+import docx
+from docx.shared import Pt
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+import re
+
+def read_docx_content(file_io):
+    try:
+        doc = docx.Document(file_io)
+        return '\n'.join([para.text for para in doc.paragraphs])
+    except Exception as e:
+        print(f"Error reading DOCX content: {e}")
+        raise
+
+def create_feedback_doc(student_name, feedback, original_essay):
+    try:
+        if not feedback:
+            raise ValueError("Feedback content is empty or None")
+
+        # Create a new Document
+        doc = docx.Document()
+
+        # Adjust standard spacing for the "Normal" paragraph style
+        style = doc.styles['Normal']
+        if style.type == docx.enum.style.WD_STYLE_TYPE.PARAGRAPH: # type: ignore
+            paragraph_format = style.paragraph_format # type: ignore
+            paragraph_format.space_after = Pt(6)
+
+            # Set the font if applicable
+            if style.font is not None: # type: ignore
+                style.font.name = 'Times New Roman' # type: ignore
+                style.font.size = Pt(12) # type: ignore
+
+        # Add student's name as the title (centered)
+        title = doc.add_heading(student_name, level=0)
+        title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+        def parse_markdown(text, paragraph):
+            parts = re.split(r'(\*\*.*?\*\*|\*.*?\*)', text)
+            for part in parts:
+                if part.startswith('**') and part.endswith('**'):
+                    run = paragraph.add_run(part[2:-2])
+                    run.bold = True
+                elif part.startswith('*') and part.endswith('*'):
+                    run = paragraph.add_run(part[1:-1])
+                    run.italic = True
+                else:
+                    paragraph.add_run(part)
+
+        # Add the original essay with proper line breaks and spacing
+        doc.add_heading("Ursprunglig uppsats", level=1)
+        paragraphs = re.split(r'\n\n|\n', original_essay)  # Split on double or single newlines
+        for para in paragraphs:
+            if para.strip():  # Only add non-empty paragraphs
+                p = doc.add_paragraph()
+                parse_markdown(para.strip(), p)
+                if p.style and hasattr(p.style, 'paragraph_format') and p.style.paragraph_format:
+                    p.style.paragraph_format.space_after = Pt(6)
+
+        # Add space after the original essay
+        doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+        # Split the feedback into sections
+        sections = re.split(r'##\s*', feedback)
+
+        for section in sections:
+            if not section.strip():
+                continue
+            lines = section.strip().split('\n')
+            heading = lines[0].strip()
+            content = '\n'.join(lines[1:]).strip()
+
+            # Add section heading for all main sections
+            if heading.lower() in ["feedback", "förtjänster", "förbättringsområden", "redaktörens förslag före publicering"]:
+                doc.add_heading(heading, level=1)
+
+            if heading.lower() == "redaktörens förslag före publicering":
+                # Add the edited essay content with proper spacing and title handling
+                paragraphs = re.split(r'\n\n|\n', content)  # Split on double or single newlines
+                for para in paragraphs:
+                    stripped_para = para.strip()
+                    if stripped_para:
+                        # Check for markdown title levels
+                        title_match = re.match(r'^(#{1,6})\s+(.+)$', stripped_para)
+                        if title_match:
+                            level = len(title_match.group(1))  # Number of # determines the level
+                            title_text = title_match.group(2)
+                            doc.add_heading(title_text, level=min(level, 9))  # Word supports up to 9 levels
+                        else:
+                            p = doc.add_paragraph()
+                            parse_markdown(stripped_para, p)
+                            if p.style and hasattr(p.style, 'paragraph_format') and p.style.paragraph_format:
+                                p.style.paragraph_format.space_after = Pt(6)
+                continue
+
+            # Process content for other sections
+            paragraphs = re.split(r'\n\n|\n', content)  # Split on double or single newlines
+            for i, para in enumerate(paragraphs):
+                stripped_para = para.strip()
+                if stripped_para:
+                    if i == 0 and heading.lower() == "feedback":
+                        # For the first paragraph of the feedback section (greeting)
+                        p = doc.add_paragraph()
+                        parse_markdown(stripped_para, p)
+                        if p.style and hasattr(p.style, 'paragraph_format') and p.style.paragraph_format:
+                            p.style.paragraph_format.space_after = Pt(0)  # No extra space after greeting
+                    elif re.match(r'^\d+\.|\*', stripped_para):
+                        # For numbered or bullet points
+                        lines = stripped_para.split('\n')
+                        for line in lines:
+                            text = re.sub(r'^\d+\.|\*\s*', '', line.strip())
+                            p = doc.add_paragraph(style='List Bullet' if line.strip().startswith('*') else 'List Number')
+                            parse_markdown(text, p)
+                    else:
+                        # For regular paragraphs
+                        p = doc.add_paragraph()
+                        parse_markdown(stripped_para, p)
+                        if p.style and hasattr(p.style, 'paragraph_format') and p.style.paragraph_format:
+                            p.style.paragraph_format.space_after = Pt(6)
+
+        print("Feedback-DOCX document created.")
+        return doc
+    except Exception as e:
+        print(f"Error creating feedback DOCX: {e}")
+        raise
+
+================================================================================
+# File: drive_utils.py
+================================================================================
+
+# drive_utils.py
+
+import io
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+
+def download_file(service, file_id):
+    try:
+        request = service.files().get_media(fileId=file_id)
+        file_io = io.BytesIO()
+        downloader = MediaIoBaseDownload(file_io, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            print(f"Download status: {int(status.progress() * 100)}%")
+        file_io.seek(0)
+        return file_io
+    except Exception as e:
+        print(f"Error downloading file ID {file_id}: {e}")
+        raise
+
+def upload_file(service, folder_id, doc, file_name):
+    try:
+        file_io = io.BytesIO()
+        doc.save(file_io)
+        file_io.seek(0)
+
+        file_metadata = {
+            'name': file_name,
+            'parents': [folder_id],
+            'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+
+        media = MediaIoBaseUpload(file_io, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        print(f"File uploaded with ID: {file.get('id')}")
+        return file.get('id')
+    except Exception as e:
+        print(f"Error uploading file {file_name}: {e}")
+        raise
+
+================================================================================
+# File: feedback_generator.py
+================================================================================
+
+# feedback_generator.py
+import openai
+from typing import Any 
+from models import FeedbackResponse
+from openai_utils import get_teacher_feedback, get_editor_revision, format_final_output
+
+def format_final_output(feedback_response: FeedbackResponse) -> str:
+    return f"""## Feedback
+
+{feedback_response.teacher_feedback}
+
+## Redaktörens förslag före publicering
+
+{feedback_response.editor_revision}"""
+
+def process_with_openai(student_name: str, essay_text: str, essay_instruction: str, client: Any) -> str:
+    # Generate teacher feedback
+    teacher_feedback = get_teacher_feedback(
+        client=client,
+        student_name=student_name,
+        essay_text=essay_text,
+        essay_instruction=essay_instruction  # Pass instruction
+    )
+
+        # Generate editor revision}...")
+    editor_revision = get_editor_revision(
+        client=client,
+        student_name=student_name,
+        essay_text=essay_text,
+        teacher_feedback=teacher_feedback,
+        essay_instruction=essay_instruction  # Pass instruction
+    )
+
+    feedback_response = FeedbackResponse(
+        teacher_feedback=teacher_feedback,
+        editor_revision=editor_revision,
+        student_name=student_name
+    )
+
+    return format_final_output(feedback_response)
+
+================================================================================
+# File: main.py
+================================================================================
+
+# main.py
+import sys
+import json
+import logging
+import openai
+import language_tool_python
+import gc
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+
+import os
+import datetime
+import monitoring
+from dotenv import load_dotenv
+import threading
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Importing utility functions from your modules
+from utils import validate_secrets, get_secret, extract_student_info, capitalize_name
+from drive_utils import download_file, upload_file
+from docx_utils import read_docx_content, create_feedback_doc
+from openai_utils import get_teacher_feedback, get_editor_revision
+from feedback_generator import process_with_openai
+from constants import ESSAY_INSTRUCTION, INPUT_FOLDER_ID, OUTPUT_FOLDER_ID
+
+def initialize_services():
+    try:
+        credentials_json = get_secret('GOOGLE_CLOUD_PRIVATE_KEY')
+        credentials_info = json.loads(credentials_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            credentials_info,
+            scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
+        )
+        service_drive = build('drive', 'v3', credentials=credentials)
+        service_docs = build('docs', 'v1', credentials=credentials)
+        return service_drive, service_docs
+    except Exception as e:
+        print(f"Error initializing Google Drive API: {e}")
+        return None, None
+
+def initialize_and_validate_services():
+    if not validate_secrets():
+        print("Failed to validate secrets. Exiting.")
+        return None, None
+    print("Secrets validated successfully.")
+    return initialize_services()
+
+def main():
+    # Initialize OpenAI API key
+    openai.api_key = get_secret('OPENAI_API_KEY')
+    if not openai.api_key:
+        print("OPENAI API Key is not set. Exiting.")
+        return
+    # Initialize the LanguageTool object
+    try:
+        tool = language_tool_python.LanguageTool('sv-SE')
+    except Exception as e:
+        print(f"Error initializing LanguageTool: {e}")
+        tool = None
+
+    try:
+        print("\nStep 2: Initializing Google Drive and Docs API services")
+        sys.stdout.flush()
+        service_drive, service_docs = initialize_and_validate_services()
+
+        if not service_drive or not service_docs:
+            print("Service initialization failed. Exiting.")
+            return
+
+        results = service_drive.files().list(
+            q=f"'{INPUT_FOLDER_ID}' in parents and trashed=false",
+            fields="files(id, name)"
+        ).execute()
+        files = results.get('files', [])
+
+        if not files:
+            print("No files found in the input folder.")
+            return
+
+        for file in files:
+            try:
+                print(f"\nProcessing file: {file['name']}")
+
+                # Process single file
+                process_single_file(service_drive, file, tool)
+
+            except Exception as e:
+                print(f"  ERROR processing file {file['name']}: {str(e)}")
+                continue
+
+    except Exception as e:
+        print(f"Error in main: {str(e)}")
+        raise
+
+def process_single_file(service_drive, file, tool):
+    try:
+        # Download and read file
+        print("  Downloading and reading file...")
+        file_io = download_file(service_drive, file['id'])
+        essay_text = read_docx_content(file_io)
+        print("  ✓ File downloaded and read successfully")
+
+        # Extract student info
+        print("  Extracting student information...")
+        student_name, subject, student_email, class_name, essay_text = extract_student_info(
+            file['name'],
+            essay_text
+        )
+
+        if not student_name:
+            raise ValueError("Failed to extract student information")
+        print(f"  ✓ Student information extracted: {student_name}, {subject}, {class_name}, {student_email}")
+        file_io = None
+
+        # Apply LanguageTool corrections
+        print("  Applying language corrections...")
+        essay_text_corrected = spell_check_and_correct(essay_text, tool)
+        print("  ✓ Language corrections applied")
+
+        # Process with OpenAI pipeline
+        processed_content = process_with_openai(
+            student_name=student_name,
+            essay_text=essay_text_corrected,
+            essay_instruction=ESSAY_INSTRUCTION,
+            client=openai.Client(api_key=openai.api_key)
+        )
+
+        print("  ✓ OpenAI processing completed")
+
+        # Create and upload feedback document
+        print("  Creating feedback document...")
+        feedback_doc = create_feedback_doc(
+            student_name,
+            processed_content,
+            essay_text
+        )
+
+        # Generate a filename that retains original, appends "_feedback" and a timestamp
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        original_filename = os.path.splitext(file['name'])[0]
+        feedback_file_name = f"{original_filename}_feedback_{timestamp}.docx"
+        print(f"  Uploading feedback document: {feedback_file_name}")
+        upload_file(service_drive, OUTPUT_FOLDER_ID, feedback_doc, feedback_file_name)
+
+        print(f"  ✓ Successfully processed and saved: {feedback_file_name}")
+        feedback_doc = None
+
+        gc.collect()
+
+    except Exception as e:
+        print(f"\n  ERROR processing file: {str(e)}")
+        raise
+
+
+def spell_check_and_correct(text: str, tool) -> str:
+    try:
+        if tool is None:
+            print("LanguageTool object is not initialized.")
+            return text  # Return original text if tool is not available
+        matches = tool.check(text)
+        corrected_text = language_tool_python.utils.correct(text, matches)
+        return corrected_text
+    except Exception as e:
+        print(f"Error during spell check and correction: {e}")
+        return text  # Return original text if correction fails
+
+def start_monitoring():
+    monitoring_thread = threading.Thread(target=monitoring.log_resource_usage, daemon=True)
+    monitoring_thread.start()
+
+if __name__ == "__main__":
+    # Start monitoring resources in a separate background thread
+    start_monitoring()
+    
+    # Run the main function for processing files
+    main()
+
+================================================================================
+# File: models.py
+================================================================================
+
+# models.py
+from dataclasses import dataclass
+
+@dataclass
+class FeedbackResponse:
+    teacher_feedback: str
+    editor_revision: str
+    student_name: str
+
+================================================================================
+# File: monitoring.py
+================================================================================
+
+#monitoring.py
+
+import logging
+import psutil
+import time
+import os
+
+# Create 'logs' directory if it doesn't exist
+if not os.path.exists('./logs'):
+    os.makedirs('./logs')
+
+# Set up logging with a FileHandler
+logger = logging.getLogger("ResourceLogger")
+logger.setLevel(logging.INFO)
+
+# Create a FileHandler to write log messages to a file
+file_handler = logging.FileHandler('./logs/resource_usage.log')
+file_handler.setLevel(logging.INFO)
+
+# Create a Formatter and set it for the handler
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add the FileHandler to the logger
+logger.addHandler(file_handler)
+
+def log_resource_usage():
+    while True:
+        cpu_usage = psutil.cpu_percent()
+        memory_usage = psutil.virtual_memory().percent
+        disk_usage = psutil.disk_usage('/').percent
+
+        # Use logger to write resource usage to the log file
+        logger.info(f"CPU Usage: {cpu_usage}%")
+        logger.info(f"Memory Usage: {memory_usage}%")
+        logger.info(f"Disk Usage: {disk_usage}%")
+        
+        # Optional: Print resource usage to the console for real-time view
+        print(f"CPU Usage: {cpu_usage}%")
+        print(f"Memory Usage: {memory_usage}%")
+        print(f"Disk Usage: {disk_usage}%")
+
+        time.sleep(5)  # Log every 5 seconds
+
+================================================================================
+# File: openai_utils.py
+================================================================================
+
+# openai_utils.py
+from models import FeedbackResponse  
+import openai
+import logging
+from typing import Any
+
+def get_teacher_feedback(client: Any, student_name: str, essay_text: str, essay_instruction: str) -> str:
+
+    """
+    Get feedback from the teacher role.
+
+    Args:
+        client: OpenAI client instance
+        student_name: Name of the student
+        essay_text: Processed essay text
+        essay_instruction: Original essay instruction
+
+    Returns:
+        str: Teacher's feedback
+
+    Raises:
+        Exception: If OpenAI API call fails
+    """
+    teacher_system_msg = """Du är Hanna Karlsson, rutinerad svensklärare på Hulebäcksgymnasiet. Du undervisar i Svenska 1 på samhällsprogrammet och är mentor för klassen. Dina elever har just börjat ettan och detta är deras första skrivuppgift efter ca en månad på gymnasiet. Din feedbackstil är:
+1. Rakt och tydligt vuxentilltal
+2. Aldrig töntig, hurtigt eller klyschigt. Du lyfter eleven genom konkreta exempel, aldrig genom onödigt peppiga uttryck eller superlativ.
+3. Anpassad för gymnasiekunskaper i grammatik och textkomposition
+4. Direkt tilltal.
+5. Ge tydliga och resonerande exempel i din feedback.
+"""
+
+    teacher_user_msg = f"""Här är en uppsats skriven av {student_name} som svar på den givna uppsatsinstruktionen. Ge feedback enligt instruktionerna och be eleven att noggrant undersöka redaktörens förslag på ändringar i elevens text som följer direkt efter din feedback.
+
+Instruktioner för feedback:
+- Börja med "Hej [elevens förnamn]!" följt av ett längre inledande resonemang om uppsatsens innehåll i relation till uppsatsinstruktionerna.
+- Du inleder sedan alltid med att direkt kommentera resonerande och insiktfullt uppsatsen i relation till uppsatsinstruktionens bedömningskriterier.
+- Sedan nämner du tre specifika exempel på förtjänster i texten där skribenten gör något bra, gärna kopplat till uppsatsinstruktionerna.
+- Du går sedan vidare med att nämna två tydligt förklarade förbättringsområden som aldrig får vara stavning eller andra enkla fel. Förbättringsområdena måste alltid vara exemplifierade och tydligt förklarade så att eleven förstår vad du menar
+- Använd INGA underrubriker i din feedback förutom "Förtjänster" och "Förbättringsområden".
+- Ge genomgåemde flera konkreta exempel och förklaringar i din feedback.
+- Efter de specifika exemplen i  "Förtjänster" och "Förbättringsområden" avslutar du genom att hänvisa till redaktörens förslag och hälsa med ditt namn, Hanna.
+
+Uppsatsinstruktion:
+{essay_instruction}
+
+Uppsats:
+{essay_text}"""
+
+    try:
+        teacher_completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": teacher_system_msg},
+                {"role": "user", "content": teacher_user_msg}
+            ],
+            temperature=0.5,
+            presence_penalty=0.3,
+            frequency_penalty=0.2,
+            top_p=0.7,
+            max_tokens=2000
+        )
+
+        return teacher_completion.choices[0].message.content.strip()
+    except Exception as e:
+        logging.error(f"Teacher feedback generation failed for {student_name}: {str(e)}")
+        raise
+
+def get_editor_revision(client: Any, student_name: str, essay_text: str, teacher_feedback: str, essay_instruction: str) -> str:
+
+    """
+    Get revision from the editor role.
+
+    Args:
+        client: OpenAI client instance
+        student_name: Name of the student
+        essay_text: Processed essay text
+        essay_instruction: Original essay instruction
+        teacher_feedback: Feedback from the teacher
+
+    Returns:
+        str: Editor's revision
+
+    Raises:
+        Exception: If OpenAI API call fails
+    """
+    editor_system_msg = """Du är en professionell redaktör som arbetar för en plattform där unga kan publicera sig. Din uppgift är att:
+1. Förbättra texten utan att förändra den grundläggande tonen eller stilen
+2. Anpassa grammatik, kohesion och språk enligt professionella standarder
+3. Vid eventuella anpassningar källhänvisningarna i brödtext ska du utgå från informationen i uppgiftsinstruktionen. ELeverna ska hänvisa fullständigt i brödtext och behöver inte ha en separat källförteckning. Däremot är det klokt att lyfta in datum för publicering inom paranteser (2024-11-29) för att underlätta läsningen.
+3. Behålla författarens unika röst
+4. Aldrig skriva något riktat till eleven. Du ska enbart synas, aldrig höras."""
+
+    editor_user_msg = f"""Här är en uppsats som ska redigeras baserat på lärarens feedback och dina professionella insikter.
+
+Uppsatsinstruktion:
+{essay_instruction}
+
+Uppsats:
+{essay_text}
+
+Lärarens feedback:
+{teacher_feedback}
+
+Ge endast den redigerade versionen av texten utan några kommentarer eller förklaringar."""
+
+    try:
+        editor_completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": editor_system_msg},
+                {"role": "user", "content": editor_user_msg}
+            ],
+            temperature=0.3,
+            top_p=0.8,
+            max_tokens=2000
+        )
+
+        return editor_completion.choices[0].message.content.strip()
+    except Exception as e:
+        logging.error(f"Editor revision failed for {student_name}: {str(e)}")
+        raise
+    
+def format_final_output(feedback_response: FeedbackResponse) -> str:
+    return f"""## Feedback
+
+{feedback_response.teacher_feedback}
+
+## Redaktörens förslag före publicering
+
+{feedback_response.editor_revision}"""
+
+================================================================================
+# File: utils.py
+================================================================================
+
+# utils.py
+
+import os
+import re
+
+import os
+from dotenv import load_dotenv
+
+def get_secret(secret_name: str) -> str:
+    """
+    Retrieve a secret from environment variables.
+
+    Args:
+    secret_name (str): The name of the secret to retrieve.
+
+    Returns:
+    str: The secret value.
+
+    Raises:
+    ValueError: If the secret is not found.
+    """
+    value = os.getenv(secret_name)
+    if value is not None:
+        return value
+
+    raise ValueError(f"Secret {secret_name} not found in environment variables")
+
+def validate_secrets() -> bool:
+    required_secrets = ['OPENAI_API_KEY', 'GOOGLE_CLOUD_PRIVATE_KEY']
+    for secret in required_secrets:
+        try:
+            get_secret(secret)
+        except ValueError:
+            print(f"Secret {secret} not found.")
+            return False
+    return True
+
+def capitalize_name(name):
+    return ' '.join(word.capitalize() for word in name.split())
+
+def extract_student_info(filename: str, content: str):
+    print(f"\nProcessing filename: {filename}")
+    filename = os.path.splitext(filename)[0]
+
+    lines = content.split('\n')
+
+    # Primary Attempt: Extracting from the first four lines of the document
+    student_name = lines[0].strip() if len(lines) > 0 else None
+    subject = lines[1].strip() if len(lines) > 1 else None
+    student_email = lines[2].strip() if len(lines) > 2 else None
+    class_name = lines[3].strip() if len(lines) > 3 else None
+
+    # Capitalize the student name if it was found
+    if student_name:
+        student_name = capitalize_name(student_name)
+
+    # Clean up class name to remove "Klass:" if it appears
+    if class_name and class_name.lower().startswith("klass:"):
+        class_name = class_name.split(":", 1)[-1].strip()
+
+    # Fallback 1: Use filename if any information is missing
+    if not student_name or not subject or not class_name:
+        print("  WARNING: Missing information in the first four lines. Attempting fallback extraction from filename...")
+
+        # Regex pattern to match the filename format "First Last (Subject Class)"
+        filename_pattern = r"^(.*?)\s*\((.*?)\s*(SA|NA)\d+[A-Z]\)$"
+        match = re.match(filename_pattern, filename)
+
+        if match:
+            if not student_name:
+                student_name = capitalize_name(match.group(1).strip())
+            if not subject:
+                subject = match.group(2).strip()
+            if not class_name:
+                class_name = match.group(3).strip()
+
+    # Fallback 2: Default values if still not found
+    if not student_name:
+        student_name = "Unknown Student"
+        print("  WARNING: Student name not found. Using default value.")
+    
+    if not subject:
+        subject = "Unknown Subject"
+        print("  WARNING: Subject not found. Using default value.")
+    
+    if not student_email:
+        student_email = "Unknown Email"
+        print("  WARNING: Student email not found. Using default value.")
+    
+    if not class_name:
+        class_name = "Unknown Class"
+        print("  WARNING: Class name not found. Using default value.")
+
+    print(f"Extracted info from content - Name: {student_name}, Subject: {subject}, Email: {student_email}, Class: {class_name}")
+    return student_name, subject, student_email, class_name, content
+
